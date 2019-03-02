@@ -104,9 +104,9 @@ After initialization in your project directory with `amplify init`, edit your `P
 ```ruby
 target 'MyApp' do             ##Replace MyApp with your application name
   use_frameworks!
-  pod 'AWSMobileClient', '~> 2.8.0'      # Required dependency
-  pod 'AWSAuthUI', '~> 2.8.0'            # Optional dependency required to use drop-in UI
-  pod 'AWSUserPoolsSignIn', '~> 2.8.0'   # Optional dependency required to use drop-in UI
+  pod 'AWSMobileClient', '~> 2.9.0'      # Required dependency
+  pod 'AWSAuthUI', '~> 2.9.0'            # Optional dependency required to use drop-in UI
+  pod 'AWSUserPoolsSignIn', '~> 2.9.0'   # Optional dependency required to use drop-in UI
 end
 ```
 
@@ -222,7 +222,7 @@ Build and run your program to see the initialized client in Xcode messages. Sinc
                                 }
                             }
                         })
-                default: 
+                default:
                     AWSMobileClient.sharedInstance().signOut()
                 }
                 
@@ -466,7 +466,10 @@ AWSMobileClient.sharedInstance().forgotPassword(username: "my_username") { (forg
         print("Error occurred: \(error.localizedDescription)")
     }
 }
+}
+```
 
+```swift
 AWSMobileClient.sharedInstance().confirmForgotPassword(username: "my_username", newPassword: "MyNewPassword123!!", confirmationCode: "ConfirmationCode") { (forgotPasswordResult, error) in
     if let forgotPasswordResult = forgotPasswordResult {
         switch(forgotPasswordResult.forgotPasswordState) {
@@ -709,12 +712,12 @@ Note that the CLI allows you to select more than one identity provider for your 
 	  target 'YOUR-APP-NAME' do
 	    use_frameworks!
 
-	    pod 'AWSFacebookSignIn', '~> 2.8.0'     # Add this new dependency
-	    pod 'AWSAuthUI', '~> 2.8.0'             # Add this dependency if you have not already added
+	    pod 'AWSFacebookSignIn', '~> 2.9.0'     # Add this new dependency
+	    pod 'AWSAuthUI', '~> 2.9.0'             # Add this dependency if you have not already added
 	    
 	    # Other Pod entries
-	    pod 'AWSMobileClient', '~> 2.8.0'
-	    pod 'AWSUserPoolsSignIn', '~> 2.8.0'
+	    pod 'AWSMobileClient', '~> 2.9.0'
+	    pod 'AWSUserPoolsSignIn', '~> 2.9.0'
 	    
 	  end
 	```
@@ -779,13 +782,13 @@ Now, your drop-in UI will show a Facebook sign in button which the users can use
 	platform :ios, '9.0'
 	target :'YOUR-APP-NAME' do
 	  use_frameworks!
-	  pod 'AWSGoogleSignIn', '~> 2.8.0'     # Add this new dependency
+	  pod 'AWSGoogleSignIn', '~> 2.9.0'     # Add this new dependency
 	  pod 'GoogleSignIn', '~> 4.0'          # Add this new dependency
-	  pod 'AWSAuthUI', '~> 2.8.0'           # Add this dependency if you have not already added
+	  pod 'AWSAuthUI', '~> 2.9.0'           # Add this dependency if you have not already added
 	    
 	  # Other Pod entries
-	  pod 'AWSMobileClient', '~> 2.8.0'
-	  pod 'AWSUserPoolsSignIn', '~> 2.8.0'
+	  pod 'AWSMobileClient', '~> 2.9.0'
+	  pod 'AWSUserPoolsSignIn', '~> 2.9.0'
 	  
 	end
 	```
@@ -869,9 +872,6 @@ In *Callback URL(s)*, for both *Signin URL(s)* and *Signout URL(s)*, enter `myap
 - Select an OAuth Flow. 
 
 By using *Authorization code grant* the callback URL will contain a code after login. The code will be used to exchange for tokens from Cognito with the TOKEN Endpoint.
-{: .callout .callout--info}
-
-By using *Implicit grant* the callback URL will contain tokens(access token, id token) after login.
 {: .callout .callout--info}
 
 The *Client credentials* flow is used in machine-to-machine communications. With it you can request an access token to access your own resources. Use this flow when your app is requesting the token on its own behalf, not on behalf of a user.
@@ -972,7 +972,7 @@ func application(_ application: UIApplication, open url: URL, sourceApplication:
 }
 ```
 
-Note: By default, the Hosted UI will show all login options; the username-password flow as well as any social providers which are configured.
+Note: By default, the Hosted UI will show all login options; the username-password flow as well as any social providers which are configured. If you wish to bypass the extra sign-in screen showing all the provider options and launch your desired social provider login directly, you can set the `HostedUIOptions` as shown in the next section.
 {: .callout .callout--info}
 
 #### Configuring Hosted UI to launch Facebook/ Google/ SAML sign in directly
