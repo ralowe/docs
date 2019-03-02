@@ -874,9 +874,6 @@ In *Callback URL(s)*, for both *Signin URL(s)* and *Signout URL(s)*, enter `myap
 By using *Authorization code grant* the callback URL will contain a code after login. The code will be used to exchange for tokens from Cognito with the TOKEN Endpoint.
 {: .callout .callout--info}
 
-The *Client credentials* flow is used in machine-to-machine communications. With it you can request an access token to access your own resources. Use this flow when your app is requesting the token on its own behalf, not on behalf of a user.
-{: .callout .callout--info}
-
 *Authorization code grant* is the recommended choice for security reasons.
 {: .callout .callout--info} 
 
@@ -964,7 +961,7 @@ AWSMobileClient.sharedInstance().showSignIn(navigationController: self.navigatio
 }
 ```
 
-> Optional: If your app deployment target is < iOS 11, add the following callback in your App Delegate's `application:open url` method:
+> Optional: If your app deployment target is < iOS 11, add the following callback in your App Delegate's `application:open url` method. This callback is required, because `SFSafariViewController` is used in < iOS 11 to integrate with the Hosted UI.
 
 ```swift
 func application(_ application: UIApplication, open url: URL, sourceApplication: String?, annotation: Any) -> Bool {
@@ -1111,7 +1108,7 @@ AWSMobileClient.sharedInstance().showSignIn(navigationController: self.navigatio
 }
 ```
 
-> Optional: If your app deployment target is < iOS 11, add the following callback in your App Delegate's `application:open url` method:
+> Optional: If your app deployment target is < iOS 11, add the following callback in your App Delegate's `application:open url` method. This callback is required, because `SFSafariViewController` is used in < iOS 11 to integrate with the Hosted UI.
 
 ```swift
 func application(_ application: UIApplication, open url: URL, sourceApplication: String?, annotation: Any) -> Bool {
