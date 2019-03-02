@@ -1042,7 +1042,7 @@ This will allow users authenticated via Auth0 have access to your AWS resources.
                 "SignOutURI": "https://YOUR_AUTH0_DOMAIN.auth0.com/v2/logout",
                 "SignOutQueryParameters": {
                     "client_id" : "YOUR_AUTH0_APP_CLIENT_ID",
-                    "returnTo" : "com.your.bundle.configured.in.auth0://rohandubal.auth0.com/ios/com.amazonaws.AWSAuthSDKTestApp/callback"
+                    "returnTo" : "com.your.bundle.configured.in.auth0://yourserver.auth0.com/ios/com.amazonaws.AWSAuthSDKTestApp/callback"
                 },
                 "Scopes": ["openid", "email"]
             }
@@ -1070,7 +1070,7 @@ This will allow users authenticated via Auth0 have access to your AWS resources.
             <dict>
                 <key>CFBundleURLSchemes</key>
                 <array>
-                    <string>com.your.bundle.configured.in.auth0://rohandubal.auth0.com/ios/com.amazonaws.AWSAuthSDKTestApp/callback</string>
+                    <string>com.your.bundle.configured.in.auth0://yourserver.auth0.com/ios/com.amazonaws.AWSAuthSDKTestApp/callback</string>
                 </array>
             </dict>
         </array>
