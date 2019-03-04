@@ -55,7 +55,7 @@ AWSMobileClient.getInstance().addUserStateListener(new UserStateListener() {
                 Log.i("userState", "user logged in via federation, but currently needs new tokens");
                 break;
             default:
-                Log.i("userState", "unsupported");
+                Log.e("userState", "unsupported");
         }
     }
 });
