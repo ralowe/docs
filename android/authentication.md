@@ -500,7 +500,7 @@ AWSMobileClient.getInstance().confirmSignIn(signInChallengeResponse, new Callbac
 
  If a user is required to change their password on first login, there is a `NEW_PASSWORD_REQUIRED` state returned when `signIn` is called. You need to provide a new password given by the user in that case. It can be done using `confirmSignIn` with the new password.
  
- ```java
+```java
 AWSMobileClient.getInstance().signIn("username", "password", null, new Callback<SignInResult>() {
     @Override
     public void onResult(final SignInResult signInResult) {
@@ -646,20 +646,45 @@ Currently, the federation feature in the AWSMobileClient supports Cognito Identi
 
 ```java
 AWSMobileClient.getInstance().federatedSignIn(IdentityProvider.FACEBOOK.toString(), "FACEBOOK_TOKEN_HERE", new Callback<UserStateDetails>() {
-            @Override
-            public void onResult(final UserStateDetails userStateDetails) {
-                //Handle the result
-            }
+    @Override
+    public void onResult(final UserStateDetails userStateDetails) {
+        //Handle the result
+    }
 
-            @Override
-            public void onError(Exception e) {
-                Log.e(TAG, "sign-in error", e);
-        });
+    @Override
+    public void onError(Exception e) {
+        Log.e(TAG, "sign-in error", e);
+});
 ```
 
 `federatedSignIn()` can be used to obtain federated "Identity ID" using external providers like Google, Facebook or Twitter. If the tokens are expired and new tokens are needed, a notification will be dispatched on the `AWSMobileClient` listener with the user state `SIGNED_OUT_FEDERATED_TOKENS_INVALID`. You can give the updated tokens via the same `federatedSignIn()` method. 
 
 The API calls to get AWS credentials will be asynchronously blocked until you fetch the social provider's token and give it to `AWSMobileClient`. Once you pass the tokens, the `AWSMobileClient` will fetch AWS Credentials using the new tokens and unblock all waiting calls. It will then use the new credentials.
+
+#### SAML with Cognito Identity
+
+To federate your SAML sign-in provider as a user sign-in provider for AWS services called in your app, you will pass tokens to `AWSMobileClient.getInstance().federatedSignIn()`. 
+You must first register your SAML application with AWS IAM by using the the following [instructions](https://docs.aws.amazon.com/cognito/latest/developerguide/saml-identity-provider.html). 
+
+Once you retrieve the SAML tokens from your sign-in, you can call the `federatedSignIn` API in `AWSMobileClient`:
+
+```java
+// Perform SAML token federation
+AWSMobileClient.getInstance().federatedSignIn("YOUR_SAML_PROVIDER_NAME", "YOUR_SAML_TOKEN", new Callback<UserStateDetails>() {
+    @Override
+    public void onResult(final UserStateDetails userStateDetails) {
+        //Handle the result
+    }
+
+    @Override
+    public void onError(Exception e) {
+        Log.e(TAG, "sign-in error", e);
+});
+```
+
+**Availability Note**
+Currently, the SAML federation feature only supports SAML assertion tokens which have 1 Role ARN. If the assertion token has more than 1 Role ARN, it will result into an error.
+{: .callout .callout--info}
 
 #### Facebook with Cognito Identity
 
@@ -1054,7 +1079,7 @@ Note: `openid` is required for `phone`, `email` or `profile`. Also `openid` is r
 
 #### Setup Amazon Cognito Hosted UI in Android App
 
-1. To configure your application for hosted UI, you need to use *HostedUI* options. Update your `awsconfiguration.json` file to add a new configuration for `MobileClient`. The configuration should look like this:
+1. To configure your application for hosted UI, you need to use *HostedUI* options. Update your `awsconfiguration.json` file to add a new configuration for `Auth`. The configuration should look like this:
 
     ```json
     {
@@ -1067,14 +1092,13 @@ Note: `openid` is required for `phone`, `email` or `profile`. Also `openid` is r
         "CognitoUserPool": {
             ...
         },
-        "MobileClient": {
+        "Auth": {
             "Default": {
-                "HostedUI": {
+                "OAuth": {
                     "WebDomain": "https://YOUR_AUTH_DOMAIN.auth.us-west-2.amazoncognito.com",
                     "AppClientId": "YOUR_APP_CLIENT_ID",
-                    "AppClientSecret": "YOUR_APP_CLIENT_SECRET",
-                    "SignInRedirectURI": "myapp://",
-                    "SignOutRedirectURI": "myapp://",
+                    "SignInRedirectURI": "myapp://callback",
+                    "SignOutRedirectURI": "myapp://signout",
                     "Scopes": ["openid", "email"]
                 }
             }
@@ -1082,32 +1106,45 @@ Note: `openid` is required for `phone`, `email` or `profile`. Also `openid` is r
     }
     ```
 
-1. Add `myapp://` to your app's URL schemes: <<<TBD - Check if this is needed for an Android App>>>
-
-    Right-click Info.plist and then choose Open As > Source Code.
-
-    Add the following entry in URL scheme:
+1. Add `myapp://` to your app's Intent filters located in `AndroidManifest.xml`. The `your.package.YourAuthIntentHandlingActivity` will be referenced in the next step.
 
     ```xml
-        <plist version="1.0">
+    <?xml version="1.0" encoding="utf-8"?>
+     <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+               xmlns:amazon="http://schemas.amazon.com/apk/res/android"
+               package="com.amazonaws.mobile.client">
 
-        <dict>
-        <!-- YOUR OTHER PLIST ENTRIES HERE -->
+        <uses-permission android:name="android.permission.INTERNET"/>
+        <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
 
-        <!-- ADD AN ENTRY TO CFBundleURLTypes for Cognito Auth -->
-        <!-- IF YOU DO NOT HAVE CFBundleURLTypes, YOU CAN COPY THE WHOLE BLOCK BELOW -->
-        <key>CFBundleURLTypes</key>
-        <array>
-            <dict>
-                <key>CFBundleURLSchemes</key>
-                <array>
-                    <string>myapp</string>
-                </array>
-            </dict>
-        </array>
+        <application>
+            <activity android:name="your.package.YourAuthIntentHandlingActivity">
+                <intent-filter>
+                    <action android:name="android.intent.action.VIEW" />
 
-        <!-- ... -->
-        </dict>
+                    <category android:name="android.intent.category.DEFAULT" />
+                    <category android:name="android.intent.category.BROWSABLE" />
+
+                    <data android:scheme="myapp" />
+                </intent-filter>
+            </activity>
+        </application>
+
+    </manifest>
+    ```
+
+1. Attach an intent callback so that the AWSMobileClient can handle the callback and confirm sign-in or sign-out. This should be in `your.package.YourAuthIntentHandlingActivity`.
+
+    ```java
+    @Override
+    protected void onResume() {
+        super.onResume();
+        Intent activityIntent = getIntent();
+        if (activityIntent.getData() != null &&
+                "myapp".equals(activityIntent.getData().getScheme())) {
+            AWSMobileClient.getInstance().handleOAuthIntent(activityIntent);
+        }
+    }
     ```
 
 #### Launching the Hosted UI
@@ -1115,24 +1152,76 @@ Note: `openid` is required for `phone`, `email` or `profile`. Also `openid` is r
 To launch the Hosted UI from from your application, you can use the `showSignIn` API of `AWSMobileClient.getInstance()`:
 
 ```java
+// No options are being specified, only the config will be used
+HostedUIOptions hostedUIOptions = HostedUIOptions.builder()
+    .scopes("openid", "email")
+    .build();
+SignInUIOptions signInUIOptions = SignInUIOptions.builder()
+    .hostedUIOptions(hostedUIOptions)
+    .build();
+// 'this' refers to the current active Activity
+AWSMobileClient.getInstance().showSignIn(this, signInUIOptions, new Callback<UserStateDetails() {
+    @Override
+    public void onResult(UserStateDetails details) {
+        Log.d(TAG, "onResult: " + result.getUserState());
+    }
 
-// TBD - Add code snippet here 
-
+    @Override
+    public void onError(Exception e) {
+        Log.e(TAG, "onError: ", e);
+    }
+})
 ```
 
-Note: By default, the Hosted UI will show all login options; the username-password flow as well as any social providers which are configured. If you wish to bypass the extra sign-in screen showing all the provider options and launch your desired social provider login directly, you can set the `HostedUIOptions` as shown in the next section.
+Note: By default, the Hosted UI will show all sign-in options; the username-password flow as well as any social providers which are configured. If you wish to bypass the extra sign-in screen showing all the provider options and launch your desired social provider login directly, you can set the `HostedUIOptions` as shown in the next section.
 {: .callout .callout--info}
 
 #### Configuring Hosted UI to launch Facebook/ Google/ SAML sign in directly
 
 ```java
-// TBD - add code snippet
+// For Google
+HostedUIOptions hostedUIOptions = HostedUIOptions.builder()
+    .scopes("openid", "email")
+    .identityProvider("Google")
+    .build();
+
+// For Facebook
+HostedUIOptions hostedUIOptions = HostedUIOptions.builder()
+    .scopes("openid", "email")
+    .identityProvider("Facebook")
+    .build();
+
+SignInUIOptions signInUIOptions = SignInUIOptions.builder()
+    .hostedUIOptions(hostedUIOptions)
+    .build();
+// 'this' refers to the current active Activity
+AWSMobileClient.getInstance().showSignIn(this, signInUIOptions, new Callback<UserStateDetails() {
+    @Override
+    public void onResult(UserStateDetails details) {
+        Log.d(TAG, "onResult: " + result.getUserState());
+    }
+
+    @Override
+    public void onError(Exception e) {
+        Log.e(TAG, "onError: ", e);
+    }
+})
 ```
 
 #### Sign Out from HostedUI
 
 ```java
-// TBD - add code snippet
+auth.signOut(SignOutOptions.builder().invalidateTokens(true).build(), new Callback<Void>() {
+    @Override
+    public void onResult(Void result) {
+        Log.d(TAG, "onResult: ");
+    }
+
+    @Override
+    public void onError(Exception e) {
+        Log.e(TAG, "onError: ", e);
+    }
+});
 ```
 
 If you want to sign out locally by just deleting tokens, you can call `signOut` method:
@@ -1167,50 +1256,49 @@ This will allow users authenticated via Auth0 have access to your AWS resources.
         "MobileClient": {
             "Default": {
                 "HostedUI": {
-                "AppClientId": "YOUR_AUTH0_APP_CLIENT_ID",
-                "AppClientSecret": "YOUR_AUTH0_APP_CLIENT_SECRET",
-                "WebDomain": "https://YOUR_AUTH0_DOMAIN.auth0.com",
-                "TokensURI": "https://YOUR_AUTH0_DOMAIN.auth0.com/oauth/token",
-                "SignInURI": "https://YOUR_AUTH0_DOMAIN.auth0.com/authorize",
-                "SignInRedirectURI": "com.your.bundle.configured.in.auth0://YOUR_AUTH0_DOMAIN.auth0.com/android/com.your.bundle/callback",
-                "SignOutURI": "https://YOUR_AUTH0_DOMAIN.auth0.com/v2/logout",
-                "SignOutQueryParameters": {
-                    "client_id" : "YOUR_AUTH0_APP_CLIENT_ID",
-                    "returnTo" : "com.your.bundle.configured.in.auth0://yourserver.auth0.com/android/com.amazonaws.AWSAuthSDKTestApp/callback"
-                },
-                "Scopes": ["openid", "email"]
-            }
+                    "AppClientId": "YOUR_AUTH0_APP_CLIENT_ID",
+                    "WebDomain": "https://YOUR_AUTH0_DOMAIN.auth0.com",
+                    "TokensURI": "https://YOUR_AUTH0_DOMAIN.auth0.com/oauth/token",
+                    "SignInURI": "https://YOUR_AUTH0_DOMAIN.auth0.com/authorize",
+                    "SignInRedirectURI": "com.your.bundle.configured.in.auth0://YOUR_AUTH0_DOMAIN.auth0.com/android/com.your.bundle/callback",
+                    "SignOutURI": "https://YOUR_AUTH0_DOMAIN.auth0.com/v2/logout",
+                    "SignOutRedirectURI": "com.your.bundle.configured.in.auth0://yourserver.auth0.com/android/com.amazonaws.AWSAuthSDKTestApp/signout",
+                    "SignOutQueryParameters": {
+                        "client_id" : "YOUR_AUTH0_APP_CLIENT_ID",
+                        "returnTo" : "com.your.bundle.configured.in.auth0://yourserver.auth0.com/android/com.amazonaws.AWSAuthSDKTestApp/signout"
+                    },
+                    "Scopes": ["openid", "email"]
+                }
             }
         }
     }
     ```
 
-1. Add the signin and signout redirect URIs to your app's URL schemes: <<TBD - What is the equivalent step for Android? >>
-
-    Right-click Info.plist and then choose Open As > Source Code.
-
-    Add the following entry in URL scheme:
+1. Add the sign-in and sign-out redirect URIs to your app's Intent filters located in `AndroidManifest.xml`.
 
     ```xml
-        <plist version="1.0">
+    <?xml version="1.0" encoding="utf-8"?>
+     <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+               xmlns:amazon="http://schemas.amazon.com/apk/res/android"
+               package="com.amazonaws.mobile.client">
 
-        <dict>
-        <!-- YOUR OTHER PLIST ENTRIES HERE -->
+        <uses-permission android:name="android.permission.INTERNET"/>
+        <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
 
-        <!-- ADD AN ENTRY TO CFBundleURLTypes for Auth0 -->
-        <!-- IF YOU DO NOT HAVE CFBundleURLTypes, YOU CAN COPY THE WHOLE BLOCK BELOW -->
-        <key>CFBundleURLTypes</key>
-        <array>
-            <dict>
-                <key>CFBundleURLSchemes</key>
-                <array>
-                    <string>com.your.bundle.configured.in.auth0://yourserver.auth0.com/android/com.amazonaws.AWSAuthSDKTestApp/callback</string>
-                </array>
-            </dict>
-        </array>
+        <application>
+            <activity android:name="your.package.YourAuthIntentHandlingActivity">
+                <intent-filter>
+                    <action android:name="android.intent.action.VIEW" />
 
-        <!-- ... -->
-        </dict>
+                    <category android:name="android.intent.category.DEFAULT" />
+                    <category android:name="android.intent.category.BROWSABLE" />
+
+                    <data android:scheme="com.your.bundle.configured.in.auth0" />
+                </intent-filter>
+            </activity>
+        </application>
+
+    </manifest>
     ```
 
 #### Launching the Hosted UI for Auth0
@@ -1218,13 +1306,39 @@ This will allow users authenticated via Auth0 have access to your AWS resources.
 To launch the Hosted UI from from your application, you can use the `showSignIn` API of `AWSMobileClient.sharedInstance()`:
 
 ```java
-// TBD - add code snippet
+final HostedUIOptions hostedUIOptions = HostedUIOptions.builder()
+        .federationProviderName("YOUR_AUTH0_DOMAIN.auth0.com")
+        .build();
+final SignInUIOptions signInUIOptions = SignInUIOptions.builder()
+        .hostedUIOptions(hostedUIOptions)
+        .build();
+AWSMobileClient.getInstance().showSignIn(mActivityTestRule.getActivity(), signInUIOptions, new Callback<UserStateDetails>() {
+    @Override
+    public void onResult(UserStateDetails result) {
+        Log.d(TAG, "onResult: " + result.getUserState());
+    }
+
+    @Override
+    public void onError(Exception e) {
+        Log.e(TAG, "onError: ", e);
+    }
+});
 ```
 
 #### Sign Out from HostedUI
 
 ```java
-// TBD - add code snippet
+AWSMobileClient.getInstance().signOut(SignOutOptions.builder().invalidateTokens(true).build(), new Callback<Void>() {
+    @Override
+    public void onResult(Void result) {
+        Log.d(TAG, "onResult: ");
+    }
+
+    @Override
+    public void onError(Exception e) {
+        Log.e(TAG, "onError: ", e);
+    }
+});
 ```
 
 If you want to sign out locally by just deleting tokens, you can call `signOut` method:
@@ -1262,7 +1376,17 @@ A not-remembered device is the flipside of being remembered, though the device i
 This option will mark the tracked device as `remembered`
 
 ```java
-// TBD - add code snippet
+AWSMobileClient.getInstance().getDeviceOperations().updateDeviceStatus(true, new Callback<Void>() {
+    @Override
+    public void onResult(Void result) {
+        Log.d(TAG, "onResult: ");
+    }
+
+    @Override
+    public void onError(Exception e) {
+        Log.e(TAG, "onError: ", e);
+    }
+});
 ```
 
 ### Update Device
@@ -1270,7 +1394,17 @@ This option will mark the tracked device as `remembered`
 This option will mark the tracked device as `not remembered`.
 
 ```java
-// TBD - add code snippet
+AWSMobileClient.getInstance().getDeviceOperations().updateDeviceStatus(false, new Callback<Void>() {
+    @Override
+    public void onResult(Void result) {
+        Log.d(TAG, "onResult: ");
+    }
+
+    @Override
+    public void onError(Exception e) {
+        Log.e(TAG, "onError: ", e);
+    }
+});
 ```
 
 ### Forget Device
@@ -1278,7 +1412,17 @@ This option will mark the tracked device as `not remembered`.
 This option will stop tracking the device altogether.
 
 ```java
-// TBD - add code snippet
+AWSMobileClient.getInstance().getDeviceOperations().forget(new Callback<Void>() {
+    @Override
+    public void onResult(Void result) {
+        Log.d(TAG, "onResult: ");
+    }
+
+    @Override
+    public void onError(Exception e) {
+        Log.e(TAG, "onError: ", e);
+    }
+});
 ```
 
 > Note: Once you call `forget`, you can update the status of the device in the same auth session. The end user will have to sign in again to remember the device.
@@ -1286,11 +1430,31 @@ This option will stop tracking the device altogether.
 ### Get Device Details
 
 ```java
-// TBD - add code snippet
+AWSMobileClient.getInstance().getDeviceOperations().get(new Callback<Device>() {
+    @Override
+    public void onResult(Device result) {
+        Log.d(TAG, "onResult: ");
+    }
+
+    @Override
+    public void onError(Exception e) {
+        Log.e(TAG, "onError: ", e);
+    }
+})
 ```
 
 ### List Devices
 
 ```java
-// TBD - add code snippet
+AWSMobileClient.getInstance().getDeviceOperations().list(new Callback<DeviceList>() {
+    @Override
+    public void onResult(DeviceList result) {
+        Log.d(TAG, "onResult: ");
+    }
+
+    @Override
+    public void onError(Exception e) {
+        Log.e(TAG, "onError: ", e);
+    }
+})
 ```
