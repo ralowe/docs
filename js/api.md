@@ -159,6 +159,8 @@ Import your auto-generated `aws-exports.js` file to configure your app to work w
 
 ```javascript
 import aws_config from "./aws-exports";
+import Auth from '@aws-amplify/auth';
+
 Amplify.configure(aws_config);
 ```
 
